@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data/
+nilearn_cache/
+*.json
+.ipynb_checkpoints/
