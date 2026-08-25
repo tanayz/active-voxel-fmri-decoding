@@ -4,3 +4,9 @@ data/
 nilearn_cache/
 *.json
 .ipynb_checkpoints/
+*.pdf
+*.png
+*.log
+*.aux
+*.bbl
+*.blg
