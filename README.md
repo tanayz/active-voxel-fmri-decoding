@@ -81,6 +81,27 @@ tier).
 - Library versions used for the reported numbers are printed at the top of each script's log and stored
   in its results JSON.
 
+## Citing
+
+If you use this code — in particular the nested-CV `ActiveVoxelSelector` pattern, the block-wise
+within-run permutation test, or the pre-fix/fixed pairs for quantifying feature-selection leakage —
+please cite the paper (GitHub's "Cite this repository" button uses `CITATION.cff`):
+
+```bibtex
+@article{chowdhury2026activevoxel,
+  author  = {Chowdhury, Tanay},
+  title   = {Active-Voxel Selection for Small-Sample {fMRI} Decoding: Dataset-Dependent
+             Preprocessing and the Cost of Cross-Validation Leakage},
+  journal = {Research Square (preprint)},
+  year    = {2026},
+  doi     = {10.21203/rs.3.rs-10828698/v1},
+  url     = {https://doi.org/10.21203/rs.3.rs-10828698/v1}
+}
+```
+
+A peer-reviewed version is under review; this entry will be updated with the journal reference when it
+is available.
+
 ## License
 
 MIT (see `LICENSE`).

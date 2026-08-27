@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: "If you use this code or the leakage/permutation-testing procedures it implements, please cite the preprint below (preferred-citation)."
+type: software
+title: "active-voxel-fmri-decoding: nested-CV fMRI decoding pipelines for StarPlus and Haxby"
+authors:
+  - family-names: Chowdhury
+    given-names: Tanay
+    email: tanayz@outlook.com
+    affiliation: Independent Researcher
+repository-code: "https://github.com/tanayz/active-voxel-fmri-decoding"
+license: MIT
+version: "1.1.0"
+date-released: "2026-08-27"
+keywords:
+  - fMRI
+  - multivariate pattern analysis
+  - brain decoding
+  - feature selection
+  - nested cross-validation
+  - data leakage
+  - permutation test
+  - nilearn
+  - scikit-learn
+preferred-citation:
+  type: article
+  title: "Active-Voxel Selection for Small-Sample fMRI Decoding: Dataset-Dependent Preprocessing and the Cost of Cross-Validation Leakage"
+  authors:
+    - family-names: Chowdhury
+      given-names: Tanay
+      affiliation: Independent Researcher
+  year: 2026
+  journal: "Research Square (preprint)"
+  doi: "10.21203/rs.3.rs-10828698/v1"
+  url: "https://doi.org/10.21203/rs.3.rs-10828698/v1"
+  notes: "Preprint; under review at a peer-reviewed journal. Please cite the journal version once available."
