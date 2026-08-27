@@ -1,7 +1,8 @@
 # Active-Voxel/ROI Selection for Small-Sample fMRI Decoding
 
 Code accompanying the paper *"Active-Voxel Selection for Small-Sample fMRI Decoding: Dataset-Dependent
-Preprocessing and the Cost of Cross-Validation Leakage"* (Chowdhury; preprint on bioRxiv, submitted to IEEE JBHI).
+Preprocessing and the Cost of Cross-Validation Leakage"* (Chowdhury, 2026). Preprint: Research Square,
+doi:[10.21203/rs.3.rs-10828698/v1](https://doi.org/10.21203/rs.3.rs-10828698/v1). Submitted to IEEE JBHI.
 
 This repository contains the scripts needed to reproduce every number reported in the paper. It does not
 include exploratory/debugging scripts or abandoned experimental variants that did not make it into the
@@ -46,7 +47,7 @@ tier).
 | Script | Produces |
 |---|---|
 | `haxby_vt_final.py` | **Final Haxby analysis (the all-subjects table, the "ours" rows of the subject-2 table, columns D–E of the ladder table, and the last column of the preprocessing table).** For every subject, from one procedure: (i) nested-CV accuracy of VT-restricted active-voxel selection with the per-fold chosen `k` recorded; (ii) the whole-VT no-selection baseline under the identical nested protocol; (iii) a permutation test that repeats the *full* nested procedure under block-wise within-run label permutation. Prints library versions. Edit `SUBJECTS` to split across kernels (the per-subject JSONs merge trivially). |
-| `haxby_ladder.py` | Decomposition ladder (Table II rows 3-5 and the all-subject ladder table): the nilearn example's pipeline restricted to the VT mask, then + feature standardisation, then + one-vs-rest logistic regression at C=1, all leave-one-run-out. Shows how the gap between the run-grouped tutorial and our no-selection pipeline splits between anatomical prior, scaling, classifier and tuning. |
+| `haxby_ladder.py` | Decomposition ladder (Table II rows 3-5 and the all-subject ladder table): the nilearn example's pipeline restricted to the VT mask, then + feature standardization, then + one-vs-rest logistic regression at C=1, all leave-one-run-out. Shows how the gap between the run-grouped tutorial and our no-selection pipeline splits between anatomical prior, scaling, classifier and tuning. |
 | `haxby_nilearn_baseline.py` | Pinned-version reproduction of nilearn's `plot_haxby_multiclass.py` example (Table II, both nilearn rows): the identical SelectKBest+SVC pipeline scored with the example's ungrouped `cv=5` and with leave-one-run-out, so the fold assignment is the only difference. |
 | `haxby_benchmark.py` | Original (unpinned) run of the nilearn baseline plus the pre-fix leaky voxel-ranking pipeline used to quantify the leakage bug's impact (leakage table) against the fixed version below. The Table II nilearn numbers now come from `haxby_nilearn_baseline.py`. |
 | `haxby_raw_nested_cv.py` | Fixed, leak-free raw-frame active-voxel selection, whole brain, all 6 subjects (preprocessing table, "Raw, whole brain" column; also the fixed counterpart used to quantify the raw-frame leakage delta). |
@@ -61,7 +62,7 @@ tier).
 |---|---|
 | `merge_haxby_final.py` | Merges the per-subject `haxby_vt_final_s*.json` files from split runs into one results file, refusing to mix runs with different library versions or configs. |
 | `make_numbers.py` | Generates the LaTeX macro file (`numbers_biorxiv.tex`) that feeds every results-derived number in the manuscript from the JSON outputs above, so tables and prose cannot drift from the result files. |
-| `make_figures.py` | Draws Figure 1 (per-subject accuracy, whole-VT baseline vs. active-voxel selection, with the permutation null) from the same JSON files. |
+| `make_figures.py` | Draws Figure 1 (per-subject accuracy, our pipeline without vs. with active-voxel selection, with the permutation null) from the same JSON files. |
 
 ## Methodology notes
 
