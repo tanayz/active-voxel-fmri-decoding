@@ -41,6 +41,7 @@ tier).
 | `starplus_glm_benchmark.py` | Pre-fix GLM beta-series pipeline with the feature-selection leakage bug described in the paper (voxel ranking computed once on the full dataset before cross-validation splitting). Included alongside the fixed version below so the leakage magnitude (13.7 points on one subject) is independently reproducible, not just asserted. |
 | `starplus_glm_nested_cv.py` | Headline StarPlus result (Table I, GLM beta-series + active-voxel selection column; 92.9% mean, leak-free). |
 | `starplus_permutation_test.py` | Permutation-test significance values reported in Table I. |
+| `starplus_ablation.py` | StarPlus attribution ablation (the ablation table): beta-series features without vs. with active-voxel selection under the identical nested protocol (k grid extended by "all", per-fold choices recorded), plus a permutation test of the no-selection arm repeating its full nested procedure. Shows the StarPlus gain belongs to the features, not the selection step. |
 
 ### Haxby (`haxby/`)
 
