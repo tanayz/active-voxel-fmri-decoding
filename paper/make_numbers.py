@@ -51,6 +51,10 @@ def main():
     ap.add_argument("--haxby-local", help="haxby_vt_final results from a second library-version set (robustness check)")
     ap.add_argument("--nilearn-local", help="nilearn-baseline results from a second library-version set (robustness check)")
     ap.add_argument("--ladder", help="haxby_ladder_results.json (tutorial pipeline on VT -> +standardisation -> +logistic)")
+    ap.add_argument("--starplus-ablation", help="starplus_ablation_results.json (beta-series with vs without selection)")
+    ap.add_argument("--extras", help="directory with robustness results: haxby_null_leakage_{a,b}.json, "
+                                     "starplus_null_leakage.json, leakage_simulation.json, "
+                                     "selection_stats_m{3,5}.json, wb_ablation_{a,b}.json")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "numbers_biorxiv.tex"))
     a = ap.parse_args()
 
@@ -194,6 +198,42 @@ def main():
     else:
         out += [macro("cbRestrictedCount", "?"), macro("cbFoldsTotal", "?"), macro("cbLDACount", "?"), macro("cbMean", "0.720")]
 
+    # ------------------------------------------------------------------ StarPlus ablation
+    sab = load(a.starplus_ablation, "starplus ablation (selection vs no-selection)")
+    if sab:
+        ss = sab["subjects"]
+        rows, sel_m, nos_m, perm_ps, null_ms = [], [], [], [], []
+        k_all = k_total = 0
+        for sid in sorted(ss):
+            r = ss[sid]
+            sel, nos = r["selection"], r["no_selection"]
+            sel_m.append(sel["mean"]); nos_m.append(nos["mean"])
+            kh = sel.get("k_histogram", {})
+            n_vox = r["n_voxels"]
+            folds_all = sum(v for k, v in kh.items() if k == "all" or (k.isdigit() and int(k) >= n_vox))
+            k_all += folds_all; k_total += sum(kh.values())
+            perm = nos.get("permutation")
+            if perm:
+                perm_ps.append(perm["p_value"]); null_ms.append(perm["null_mean"])
+            pcol = f"{perm['p_value']:.4f}" if perm else "--"
+            rows.append(f"{sid} & {r['n_voxels']} & {f3(nos['mean'])} $\\pm$ {f3(nos['sd'])} & "
+                        f"{f3(sel['mean'])} $\\pm$ {f3(sel['sd'])} & ${100 * (sel['mean'] - nos['mean']):+.1f}$ & {pcol} \\\\")
+        out += [macro("spAblRows", " ".join(rows)),
+                macro("spAblNoSelMean", f3(np.mean(nos_m))), macro("spAblSelMean", f3(np.mean(sel_m))),
+                macro("spAblNoSelMeanPct", pct(np.mean(nos_m))), macro("spAblSelMeanPct", pct(np.mean(sel_m))),
+                macro("spAblDeltaPts", f"${100 * (np.mean(sel_m) - np.mean(nos_m)):+.1f}$"),
+                macro("spAblKallCount", str(k_all)), macro("spAblKfoldsTotal", str(k_total)),
+                macro("spAblKsubsetCount", str(k_total - k_all)),
+                macro("spAblPermN", str(ss[sorted(ss)[0]]["no_selection"].get("permutation", {}).get("n", "?"))),
+                macro("spAblPmax", f"{max(perm_ps):.4f}" if perm_ps else "?"),
+                macro("spAblNullRange", f"{min(null_ms):.2f}--{max(null_ms):.2f}" if null_ms else "?")]
+    else:
+        out += [macro("spAblRows", "\\multicolumn{6}{c}{[PENDING: starplus ablation]} \\\\"),
+                macro("spAblNoSelMean", "?"), macro("spAblSelMean", "?"),
+                macro("spAblNoSelMeanPct", "?"), macro("spAblSelMeanPct", "?"), macro("spAblDeltaPts", "?"),
+                macro("spAblKallCount", "?"), macro("spAblKfoldsTotal", "?"), macro("spAblKsubsetCount", "?"),
+                macro("spAblPermN", "?"), macro("spAblPmax", "?"), macro("spAblNullRange", "?")]
+
     # ------------------------------------------------------------------ decomposition ladder
     ld = load(a.ladder, "haxby ladder")
     steps = [("A_tutorial_pipeline_VT", "ldA"), ("B_plus_standardisation", "ldB"), ("C_plus_logistic_regression", "ldC")]
@@ -229,6 +269,119 @@ def main():
             out += [macro(name + "SubjTwo", "?"), macro(name + "SubjTwoSD", "?"), macro(name + "Mean", "?")]
         out += [macro("ldNsubjects", "?"), macro("ldRows", "\\multicolumn{6}{c}{[PENDING: ladder]} \\\\")]
         out += [macro(n, "?") for n in ("ldDeltaVT", "ldDeltaScale", "ldDeltaLogit", "ldDeltaTune")]
+
+    # ------------------------------------------------------------------ robustness extras
+    def xload(name):
+        return load(os.path.join(a.extras, name) if a.extras else None, f"extras: {name}")
+
+    # Haxby protocols under block-permuted labels
+    na, nb = xload("haxby_null_leakage_a.json"), xload("haxby_null_leakage_b.json")
+    keys = ["A_tutorial_cv5_ungrouped", "B_tutorial_loro", "C_leaky_sweep_wholebrain", "C_leaky_sweep_vt"]
+    names = ["NullTutUng", "NullTutLoro", "NullLeakWB", "NullLeakVT"]
+    if na and nb:
+        hs = {**na["subjects"], **nb["subjects"]}
+        rows = []
+        for s in sorted(hs, key=int):
+            r = hs[s]
+            rows.append(f"{s} & " + " & ".join(f"{f3(r['real'][k])} / {f3(np.mean(r['null'][k]))}" for k in keys) + " \\\\")
+        out += [macro("nullRows", " ".join(rows)), macro("nullNperm", str(na["n_permutations"]))]
+        for k, n in zip(keys, names):
+            out += [macro(f"x{n}", f3(np.mean([np.mean(hs[s]["null"][k]) for s in hs]))),
+                    macro(f"x{n}Real", f3(np.mean([hs[s]["real"][k] for s in hs])))]
+        ung = np.mean([np.mean(hs[s]["null"][keys[0]]) for s in hs])
+        out += [macro("xNullTutUngPct", pct(ung))]
+        out += [macro("xNullTutUngInflPts", f"{100 * (ung - 0.125):.1f}"),
+                macro("xNullVersions", f"\\texttt{{scikit-learn}} {na['versions']['scikit-learn']} / "
+                                       f"\\texttt{{nilearn}} {na['versions']['nilearn']}")]
+    else:
+        out += [macro("nullRows", "\\multicolumn{5}{c}{[PENDING: null leakage]} \\\\"), macro("nullNperm", "?"),
+                macro("xNullTutUngInflPts", "?"), macro("xNullVersions", "?"), macro("xNullTutUngPct", "?")]
+        out += [macro(f"x{n}", "?") for n in names] + [macro(f"x{n}Real", "?") for n in names]
+
+    # StarPlus pre-fix flat sweep under permuted labels
+    spn = xload("starplus_null_leakage.json")
+    if spn:
+        ss = spn["subjects"]
+        nm = [ss[s]["null_mean"] for s in ss]
+        out += [macro("spNullLeakRange", f"{min(nm):.3f}--{max(nm):.3f}"),
+                macro("spNullLeakMean", f3(np.mean(nm))), macro("spNullLeakMeanPct", pct(np.mean(nm))),
+                macro("spNullLeakRangePct", f"{100 * min(nm):.1f}--{pct(max(nm))}"),
+                macro("spNullLeakMax", f3(max(ss[s]["null_max"] for s in ss))),
+                macro("spNullLeakN", str(spn["n_null"]))]
+    else:
+        out += [macro(n, "?") for n in ("spNullLeakRange", "spNullLeakMean", "spNullLeakMeanPct", "spNullLeakRangePct",
+                                        "spNullLeakMax", "spNullLeakN")]
+
+    # ground-truth simulation
+    sim = xload("leakage_simulation.json")
+    if sim:
+        fr, bt = sim["frames"], sim["betas"]
+        def m(rows, key, **cond):
+            sel = [r[key] for r in rows if all(r[c] == v for c, v in cond.items())]
+            return float(np.mean(sel))
+        corr_all = [m(fr, "correct", p=p, phi=phi) for p in sim["config"]["p_values"] for phi in sim["config"]["phi_values"]]
+        corr_all += [m(bt, "correct", p=p) for p in sim["config"]["p_values"]]
+        out += [macro("simSeeds", str(sim["config"]["n_seeds"])),
+                macro("simCorrectRange", f"{min(corr_all):.2f}--{max(corr_all):.2f}"),
+                macro("simSelBeforeTwoK", f3(m(fr, "select_before", p=2000, phi=0.0))),
+                macro("simSelBeforeFortyK", f3(m(fr, "select_before", p=40000, phi=0.0))),
+                macro("simSelBeforeFortyKAR", f3(m(fr, "select_before", p=40000, phi=0.5))),
+                macro("simBetaSelTenK", f3(m(bt, "select_before", p=10000))),
+                macro("simUngPhiZero", f3(np.mean([m(fr, "ungrouped_cv5", p=p, phi=0.0) for p in sim["config"]["p_values"]]))),
+                macro("simUngPhiEight", f3(np.mean([m(fr, "ungrouped_cv5", p=p, phi=0.8) for p in sim["config"]["p_values"]])))]
+    else:
+        out += [macro(n, "?") for n in ("simSeeds", "simCorrectRange", "simSelBeforeTwoK", "simSelBeforeFortyK",
+                                        "simSelBeforeFortyKAR", "simBetaSelTenK", "simUngPhiZero", "simUngPhiEight")]
+
+    # selection-vs-no-selection equivalence statistics
+    e3, e5 = xload("selection_stats_m3.json"), xload("selection_stats_m5.json")
+    if e3 and e5:
+        ps = [r["p"] for r in e3["per_subject"]]
+        out += [macro("eqN", str(e3["n_subjects"])), macro("eqMeanDelta", f"${100 * e3['mean_delta']:+.1f}$"),
+                macro("eqCI", f"${100 * e3['ci90'][0]:+.1f}$ to ${100 * e3['ci90'][1]:+.1f}$"),
+                macro("eqPthree", f"{e3['p_tost']:.3f}"), macro("eqPfive", f"{e5['p_tost']:.3f}"),
+                macro("eqMinP", f"{min(ps):.2f}"), macro("eqNsig", str(e3["n_significant_uncorrected"]))]
+    else:
+        out += [macro(n, "?") for n in ("eqN", "eqMeanDelta", "eqCI", "eqPthree", "eqPfive", "eqMinP", "eqNsig")]
+
+    # whole-brain ablation (selection vs no selection on all ~40k voxels)
+    wa, wb = xload("wb_ablation_a.json"), xload("wb_ablation_b.json")
+    if wa and wb:
+        ws = {**wa["subjects"], **wb["subjects"]}
+        rows, sel_m, nos_m = [], [], []
+        k_all = k_tot = 0
+        for s in sorted(ws, key=int):
+            r = ws[s]
+            sel, nos = r["selection"], r["no_selection"]
+            sel_m.append(sel["mean"]); nos_m.append(nos["mean"])
+            kh = sel.get("k_histogram", {})
+            k_all += kh.get("all", 0); k_tot += sum(kh.values())
+            rows.append(f"{s} & {f3(nos['mean'])} $\\pm$ {f3(nos['sd'])} & {f3(sel['mean'])} $\\pm$ {f3(sel['sd'])} & "
+                        f"${100 * (sel['mean'] - nos['mean']):+.1f}$ \\\\")
+        out += [macro("wbRows", " ".join(rows)), macro("wbNoSelMean", f3(np.mean(nos_m))),
+                macro("wbNoSelMeanPct", pct(np.mean(nos_m))), macro("wbSelMeanPct", pct(np.mean(sel_m))),
+                macro("wbSelMean", f3(np.mean(sel_m))),
+                macro("wbDeltaPts", f"${100 * (np.mean(sel_m) - np.mean(nos_m)):+.1f}$"),
+                macro("wbWins", str(sum(1 for x, y in zip(sel_m, nos_m) if x > y))),
+                macro("wbKall", str(k_all)), macro("wbKtot", str(k_tot)),
+                macro("wbMinDelta", f"{100 * min(x - y for x, y in zip(sel_m, nos_m)):.1f}"),
+                macro("wbMaxDelta", f"{100 * max(x - y for x, y in zip(sel_m, nos_m)):.1f}")]
+        wst = xload("wb_selection_stats.json")
+        out += [macro("wbMaxP", f"{wst['max_p']:.3f}" if wst else "?")]
+        sa, sb = xload("wb_strongc_a.json"), xload("wb_strongc_b.json")
+        if sa and sb:
+            sc = {**sa["subjects"], **sb["subjects"]}
+            cs = [c["C"] for s in sc for c in sc[s]["no_selection"]["per_fold_choices"]]
+            maxdiff = max(abs(sc[s]["no_selection"]["mean"] - ws[s]["no_selection"]["mean"]) for s in sc)
+            out += [macro("wbStrongMinC", f"10^{{{int(np.log10(min(sa['config']['c_values'])))}}}"),
+                    macro("wbStrongMinChosen", f"{min(cs):g}"), macro("wbStrongMaxDiff", f"{100 * maxdiff:.1f}")]
+        else:
+            out += [macro(n, "?") for n in ("wbStrongMinC", "wbStrongMinChosen", "wbStrongMaxDiff")]
+    else:
+        out += [macro("wbRows", "\\multicolumn{4}{c}{[PENDING: whole-brain ablation]} \\\\")]
+        out += [macro(n, "?") for n in ("wbNoSelMean", "wbSelMean", "wbDeltaPts", "wbWins", "wbKall", "wbKtot",
+                                        "wbMinDelta", "wbMaxDelta", "wbMaxP", "wbNoSelMeanPct", "wbSelMeanPct", "wbStrongMinC", "wbStrongMinChosen",
+                                        "wbStrongMaxDiff")]
 
     # ------------------------------------------------------------------ software versions
     v = versions or nl_versions

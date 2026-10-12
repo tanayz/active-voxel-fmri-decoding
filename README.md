@@ -41,6 +41,7 @@ tier).
 | `starplus_glm_benchmark.py` | Pre-fix GLM beta-series pipeline with the feature-selection leakage bug described in the paper (voxel ranking computed once on the full dataset before cross-validation splitting). Included alongside the fixed version below so the leakage magnitude (13.7 points on one subject) is independently reproducible, not just asserted. |
 | `starplus_glm_nested_cv.py` | Headline StarPlus result (Table I, GLM beta-series + active-voxel selection column; 92.9% mean, leak-free). |
 | `starplus_permutation_test.py` | Permutation-test significance values reported in Table I. |
+| `starplus_null_leakage.py` | The pre-fix rank-then-sweep protocol scored on randomly permuted labels (chance 0.5): shows it reports ~93-95% on data with no signal. |
 | `starplus_ablation.py` | StarPlus attribution ablation (the ablation table): beta-series features without vs. with active-voxel selection under the identical nested protocol (k grid extended by "all", per-fold choices recorded), plus a permutation test of the no-selection arm repeating its full nested procedure. Shows the StarPlus gain belongs to the features, not the selection step. |
 
 ### Haxby (`haxby/`)
@@ -48,6 +49,8 @@ tier).
 | Script | Produces |
 |---|---|
 | `haxby_vt_final.py` | **Final Haxby analysis (the all-subjects table, the "ours" rows of the subject-2 table, columns D–E of the ladder table, and the last column of the preprocessing table).** For every subject, from one procedure: (i) nested-CV accuracy of VT-restricted active-voxel selection with the per-fold chosen `k` recorded; (ii) the whole-VT no-selection baseline under the identical nested protocol; (iii) a permutation test that repeats the *full* nested procedure under block-wise within-run label permutation. Prints library versions. Edit `SUBJECTS` to split across kernels (the per-subject JSONs merge trivially). |
+| `haxby_wholebrain_ablation.py` | Whole-brain (39,912-voxel) ablation, with vs without selection under the final nested protocol; `ARMS`/`C_VALUES` switches reproduce the strong-regularization check (C down to 1e-4). Shows when selection matters (+25 points). |
+| `haxby_null_leakage.py` | The nilearn example (ungrouped cv=5 and run-grouped) and the pre-fix sweep (whole brain, VT) scored on real and block-permuted labels. |
 | `haxby_ladder.py` | Decomposition ladder (Table II rows 3-5 and the all-subject ladder table): the nilearn example's pipeline restricted to the VT mask, then + feature standardization, then + one-vs-rest logistic regression at C=1, all leave-one-run-out. Shows how the gap between the run-grouped tutorial and our no-selection pipeline splits between anatomical prior, scaling, classifier and tuning. |
 | `haxby_nilearn_baseline.py` | Pinned-version reproduction of nilearn's `plot_haxby_multiclass.py` example (Table II, both nilearn rows): the identical SelectKBest+SVC pipeline scored with the example's ungrouped `cv=5` and with leave-one-run-out, so the fold assignment is the only difference. |
 | `haxby_benchmark.py` | Original (unpinned) run of the nilearn baseline plus the pre-fix leaky voxel-ranking pipeline used to quantify the leakage bug's impact (leakage table) against the fixed version below. The Table II nilearn numbers now come from `haxby_nilearn_baseline.py`. |
@@ -57,12 +60,20 @@ tier).
 | `haxby_raw_permutation_test.py` | Earlier fixed-pipeline permutation test of the *whole-brain* raw-frame track. Kept for the record; its p-values are no longer reported because it tested a different pipeline than the one in Table III and chose its fixed hyperparameters on the full dataset. Superseded by the full-procedure test in `haxby_vt_final.py`. |
 | `haxby_hyperalignment_sanity.py` | Cross-subject hyperalignment negative result (52.8% solo vs. 25.1% pooled for subject 4). |
 
+### Simulation (`simulation/`)
+
+| Script | Produces |
+|---|---|
+| `leakage_simulation.py` | Ground-truth simulation on pure noise in the Haxby layout: selection-before-split and ungrouped-CV bias as a function of voxel count and temporal autocorrelation (Figure 2). |
+
 ### Paper numbers (`paper/`)
 
 | Script | Produces |
 |---|---|
 | `merge_haxby_final.py` | Merges the per-subject `haxby_vt_final_s*.json` files from split runs into one results file, refusing to mix runs with different library versions or configs. |
 | `make_numbers.py` | Generates the LaTeX macro file (`numbers_biorxiv.tex`) that feeds every results-derived number in the manuscript from the JSON outputs above, so tables and prose cannot drift from the result files. |
+| `selection_stats.py` | Corrected resampled t-tests per subject and a TOST equivalence test for selection vs no selection. |
+| `make_fig2.py` | Draws Figure 2 (simulation). |
 | `make_figures.py` | Draws Figure 1 (per-subject accuracy, our pipeline without vs. with active-voxel selection, with the permutation null) from the same JSON files. |
 
 ## Methodology notes

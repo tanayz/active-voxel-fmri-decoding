@@ -26,11 +26,17 @@ ARGS=(--starplus "$RUN/starplus_nested_output/starplus_nested_cv_results.json"
 [ -f "$R/haxby_vt_final_local.json" ] && ARGS+=(--haxby-local "$R/haxby_vt_final_local.json")
 [ -f "$R/haxby_nilearn_baseline_local.json" ] && ARGS+=(--nilearn-local "$R/haxby_nilearn_baseline_local.json")
 [ -f "$R/haxby_ladder_results.json" ] && ARGS+=(--ladder "$R/haxby_ladder_results.json")
+[ -f "$R/starplus_ablation_results.json" ] && ARGS+=(--starplus-ablation "$R/starplus_ablation_results.json")
+EXTRAS="${EXTRAS:-$RUN/robustness_output}"
+[ -d "$EXTRAS" ] && ARGS+=(--extras "$EXTRAS")
 $PY make_numbers.py "${ARGS[@]}"
 
-$PYPLOT make_figures.py --haxby-final haxby_vt_final_results.json \
-    --starplus "$RUN/starplus_nested_output/starplus_nested_cv_results.json" \
-    --starplus-perm "$RUN/starplus_perm_output/starplus_permutation_results.json" 2>&1 | grep -v -i "warn" || true
+FIGARGS=(--haxby-final haxby_vt_final_results.json
+         --starplus "$RUN/starplus_nested_output/starplus_nested_cv_results.json"
+         --starplus-perm "$RUN/starplus_perm_output/starplus_permutation_results.json")
+[ -f "$R/starplus_ablation_results.json" ] && FIGARGS+=(--starplus-ablation "$R/starplus_ablation_results.json")
+$PYPLOT make_figures.py "${FIGARGS[@]}" 2>&1 | grep -v -i "warn" || true
+[ -f "$EXTRAS/leakage_simulation.json" ] && { $PYPLOT make_fig2.py "$EXTRAS/leakage_simulation.json" 2>&1 | grep -v -i "warn" || true; }
 
 pdflatex -interaction=nonstopmode -halt-on-error main_biorxiv.tex > build_biorxiv.log 2>&1
 bibtex main_biorxiv > bibtex_biorxiv.log 2>&1
