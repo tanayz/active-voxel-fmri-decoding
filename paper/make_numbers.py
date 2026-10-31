@@ -383,6 +383,85 @@ def main():
                                         "wbMinDelta", "wbMaxDelta", "wbMaxP", "wbNoSelMeanPct", "wbSelMeanPct", "wbStrongMinC", "wbStrongMinChosen",
                                         "wbStrongMaxDiff")]
 
+    # ------------------------------------------------------------------ anatomy of whole-brain selection
+    an = {}
+    for h in "abc":
+        r = xload(f"sel_anatomy_{h}.json")
+        if r:
+            an.update(r["subjects"])
+            an_versions = r["versions"]
+    op = {}
+    for h in "abc":
+        r = xload(f"outvt_perm_{h}.json")
+        if r:
+            op.update(r["subjects"])
+            op_cfg = r["config"]
+    an_names = ("anRows", "anChanceRange", "anFracRange", "anFracMinFold", "anEnrichRange", "anEnrichMean", "anMaxP",
+                "anFracRangeK", "anEnrichRangeK", "anOutsideRange", "anWithinTenRange", "anDistRange", "anPostRange",
+                "anStableRange", "anAnyRange", "anFaceRange", "anHouseRange", "anOutMean", "anOutRange",
+                "anOutVsVT", "anOutVsWB", "anOutFixedMean", "anOutP", "anOutNullRange", "anOutNullMax",
+                "anOutPermN", "anOutK", "anOutC", "anWBbeatsVT", "anWBbeatsVTn", "anCostBeats", "anCostOthers",
+                "anVTgeOut", "anVersions")
+    if len(an) == 6 and len(op) == 6 and wa and wb and hx:
+        S = sorted(an, key=int)
+        fm = lambda s, k, key: float(np.mean([f[k][key] for f in an[s]["folds"]]))
+        rng = lambda vals, nd=1, pc=False: (f"{min(vals):.{nd}f}--{max(vals):.{nd}f}" + ("\\%" if pc else ""))
+        frac5 = [100 * fm(s, "500", "frac_in_vt") for s in S]
+        enr5 = [fm(s, "500", "enrichment") for s in S]
+        chance = [100 * an[s]["vt_chance"] for s in S]
+        maxp = max(f[k]["hypergeom_p"] for s in S for f in an[s]["folds"] for k in ("500", "1000"))
+        out_acc = [an[s]["outside_vt_decoding"]["mean"] for s in S]
+        vt_acc = [hx["subjects"][s]["all_vt_baseline"]["mean"] for s in S]
+        wsub = {**wa["subjects"], **wb["subjects"]}
+        wb_acc = [wsub[s]["selection"]["mean"] for s in S]
+        beats = [s for s, w_, v_ in zip(S, wb_acc, vt_acc) if w_ > v_]
+        rows = []
+        for s, c, f, e, o in zip(S, chance, frac5, enr5, out_acc):
+            rows.append(f"{s} & {an[s]['n_vt']} & {c:.2f} & {f:.1f} & {e:.0f}$\\times$ & "
+                        f"{100 * fm(s, '500', 'outside_frac_posterior_third'):.0f} & "
+                        f"{f3(o)} $\\pm$ {f3(an[s]['outside_vt_decoding']['sd'])} & {f3(op[s]['null_mean'])} & "
+                        f"{op[s]['p']:.3f} \\\\")
+        pexp = int(np.floor(np.log10(maxp)))
+        out += [macro("anRows", " ".join(rows)),
+                macro("anChanceRange", rng(chance, 1, True)), macro("anFracRange", rng(frac5, 0, True)),
+                macro("anFracMinFold", f"{100 * min(f['500']['frac_in_vt'] for s in S for f in an[s]['folds']):.0f}\\%"),
+                macro("anEnrichRange", rng(enr5, 0)), macro("anEnrichMean", f"{np.mean(enr5):.0f}"),
+                macro("anMaxP", f"10^{{{pexp + 1}}}"),
+                macro("anFracRangeK", rng([100 * fm(s, "1000", "frac_in_vt") for s in S], 0, True)),
+                macro("anEnrichRangeK", rng([fm(s, "1000", "enrichment") for s in S], 0)),
+                macro("anOutsideRange", rng([100 - f for f in frac5], 0, True)),
+                macro("anWithinTenRange", rng([100 * fm(s, "500", "outside_frac_within_10mm") for s in S], 0, True)),
+                macro("anDistRange", rng([fm(s, "500", "outside_dist_mm_median") for s in S], 0)),
+                macro("anPostRange", rng([100 * fm(s, "500", "outside_frac_posterior_third") for s in S], 0, True)),
+                macro("anStableRange", rng([an[s]["stable_500"]["n_selected_every_fold"] for s in S], 0)),
+                macro("anAnyRange", rng([an[s]["stable_500"]["n_selected_any_fold"] for s in S], 0)),
+                macro("anFaceRange", rng([100 * fm(s, "500", "frac_in_face") for s in S], 1, True)),
+                macro("anHouseRange", rng([100 * fm(s, "500", "frac_in_house") for s in S], 1, True)),
+                macro("anOutMean", f3(np.mean(out_acc))), macro("anOutRange", rng(out_acc, 3)),
+                macro("anOutVsVT", f"${100 * (np.mean(out_acc) - np.mean(vt_acc)):+.1f}$"),
+                macro("anOutVsWB", f"${100 * (np.mean(out_acc) - np.mean(wb_acc)):+.1f}$"),
+                macro("anOutFixedMean", f3(np.mean([op[s]["observed"] for s in S]))),
+                macro("anOutP", f"{max(op[s]['p'] for s in S):.4f}"),
+                macro("anOutNullRange", rng([op[s]["null_mean"] for s in S], 3)),
+                macro("anOutNullMax", f3(max(op[s]["null_max"] for s in S))),
+                macro("anOutPermN", str(op_cfg["n_permutations"])), macro("anOutK", f"{op_cfg['k']:,}".replace(",", "{,}")),
+                macro("anOutC", f"{op_cfg['C']:g}"),
+                macro("anWBbeatsVT", (", ".join(beats[:-1]) + " and " + beats[-1]) if len(beats) > 1
+                      else (beats[0] if beats else "none")),
+                macro("anWBbeatsVTn", str(len(beats))),
+                # cost of removing VT (VT-all minus outside-VT, points), split by whether WB selection beat VT
+                macro("anCostBeats", f"{max(100 * (v_ - o) for s, v_, o in zip(S, vt_acc, out_acc) if s in beats):.1f}"
+                      if beats else "?"),
+                macro("anCostOthers", rng([100 * (v_ - o) for s, v_, o in zip(S, vt_acc, out_acc) if s not in beats], 0)
+                      if len(beats) < len(S) else "?"),
+                macro("anVTgeOut", str(sum(1 for v_, o in zip(vt_acc, out_acc) if v_ >= o))),
+                macro("anVersions", f"\\texttt{{scikit-learn}} {an_versions['scikit-learn']} / "
+                                    f"\\texttt{{nilearn}} {an_versions['nilearn']}")]
+    else:
+        FALLBACK_FLAGS.append("anatomy (sel_anatomy_*/outvt_perm_* incomplete)")
+        out += [macro("anRows", "\\multicolumn{9}{c}{[PENDING: anatomy]} \\\\")]
+        out += [macro(n, "?") for n in an_names[1:]]
+
     # ------------------------------------------------------------------ software versions
     v = versions or nl_versions
     out += [macro("skVersion", v.get("scikit-learn", "?")), macro("nilearnVersion", v.get("nilearn", "?")),

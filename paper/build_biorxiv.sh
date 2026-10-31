@@ -23,8 +23,12 @@ ARGS=(--starplus "$RUN/starplus_nested_output/starplus_nested_cv_results.json"
       --combined "$RUN/combined_v2_output/haxby_combined_levers_results.json"
       --nilearn "$R/haxby_nilearn_baseline_results.json"
       --haxby-final haxby_vt_final_results.json)
-[ -f "$R/haxby_vt_final_local.json" ] && ARGS+=(--haxby-local "$R/haxby_vt_final_local.json")
-[ -f "$R/haxby_nilearn_baseline_local.json" ] && ARGS+=(--nilearn-local "$R/haxby_nilearn_baseline_local.json")
+# second-version-set results: plain name, or the versioned name the local runs write (*_local_sklearn<ver>.json)
+first() { for f in "$@"; do [ -f "$f" ] && { echo "$f"; return; }; done; }
+HL=$(first "$R/haxby_vt_final_local.json" "$R"/haxby_vt_final_local_sklearn*.json)
+NL=$(first "$R/haxby_nilearn_baseline_local.json" "$R"/haxby_nilearn_baseline_local_sklearn*.json)
+[ -n "$HL" ] && ARGS+=(--haxby-local "$HL")
+[ -n "$NL" ] && ARGS+=(--nilearn-local "$NL")
 [ -f "$R/haxby_ladder_results.json" ] && ARGS+=(--ladder "$R/haxby_ladder_results.json")
 [ -f "$R/starplus_ablation_results.json" ] && ARGS+=(--starplus-ablation "$R/starplus_ablation_results.json")
 EXTRAS="${EXTRAS:-$RUN/robustness_output}"
