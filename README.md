@@ -2,7 +2,7 @@
 
 Code accompanying the paper *"Active-Voxel Selection for Small-Sample fMRI Decoding: Dataset-Dependent
 Preprocessing and the Cost of Cross-Validation Leakage"* (Chowdhury, 2026). Preprint: Research Square,
-doi:[10.21203/rs.3.rs-10828698/v1](https://doi.org/10.21203/rs.3.rs-10828698/v1). Submitted to IEEE JBHI.
+doi:[10.21203/rs.3.rs-10828698/v1](https://doi.org/10.21203/rs.3.rs-10828698/v1).
 
 This repository contains the scripts needed to reproduce every number reported in the paper. It does not
 include exploratory/debugging scripts or abandoned experimental variants that did not make it into the
@@ -52,6 +52,8 @@ tier).
 | `haxby_wholebrain_ablation.py` | Whole-brain (39,912-voxel) ablation, with vs without selection under the final nested protocol; `ARMS`/`C_VALUES` switches reproduce the strong-regularization check (C down to 1e-4). Shows when selection matters (+25 points). |
 | `haxby_selection_anatomy.py` | Anatomy of whole-brain selection (Figure 3, anatomy table): for every subject and leave-one-run-out fold, ranks all 39,912 voxels on the training runs only and locates the top 500/1,000 relative to the VT mask (share in VT, enrichment over VT's share of the brain, hypergeometric p, overlap with the face/house masks, distance and anterior-posterior position of selected voxels outside VT, per-voxel selection-frequency maps saved as NIfTI with the VT mask and mean EPI); also runs the nested pipeline on the whole brain *minus* VT. |
 | `haxby_outside_vt_perm.py` | Block-wise within-run permutation test (N=50) of decoding from the whole brain minus VT, with the hyperparameters the nested search chose most often for that pool (k=1000, C=1) applied identically to real and permuted labels. |
+| `haxby_selector_robustness.py` | Robustness of the selection-versus-prior comparison to the selector and the classifier: for the whole-brain and VT pools, the nested leave-one-run-out protocol with the summed one-vs-rest F ranking, the multi-class ANOVA F ranking, random voxels, the highest-variance voxels and principal components (logistic regression), and with a linear and a Gaussian-kernel SVM without and with selection; C = 1, k chosen in the inner loop, everything fitted on training runs only. Edit `SUBJECTS` to split across kernels. |
+| `haxby_rbf_tuned.py` | The Gaussian-kernel SVM arms of `haxby_selector_robustness.py` with C and the kernel width tuned in the inner loop (precomputed kernels, so the grid is cheap); also recomputes the default-hyperparameter arm as a check on the implementation. |
 | `haxby_null_leakage.py` | The nilearn example (ungrouped cv=5 and run-grouped) and the pre-fix sweep (whole brain, VT) scored on real and block-permuted labels. |
 | `haxby_ladder.py` | Decomposition ladder (Table II rows 3-5 and the all-subject ladder table): the nilearn example's pipeline restricted to the VT mask, then + feature standardization, then + one-vs-rest logistic regression at C=1, all leave-one-run-out. Shows how the gap between the run-grouped tutorial and our no-selection pipeline splits between anatomical prior, scaling, classifier and tuning. |
 | `haxby_nilearn_baseline.py` | Pinned-version reproduction of nilearn's `plot_haxby_multiclass.py` example (Table II, both nilearn rows): the identical SelectKBest+SVC pipeline scored with the example's ungrouped `cv=5` and with leave-one-run-out, so the fold assignment is the only difference. |
@@ -67,6 +69,7 @@ tier).
 | Script | Produces |
 |---|---|
 | `leakage_simulation.py` | Ground-truth simulation on pure noise in the Haxby layout: selection-before-split and ungrouped-CV bias as a function of voxel count and temporal autocorrelation (Figure 2). |
+| `selection_bias_theory.py` | Closed-form approximation of the accuracy that selection before the split reports on pure noise (two classes, independent features), checked against simulated cross-validation with a nearest-centroid classifier and logistic regression over 32 configurations. |
 
 ### Paper numbers (`paper/`)
 
@@ -76,6 +79,8 @@ tier).
 | `make_numbers.py` | Generates the LaTeX macro file (`numbers_biorxiv.tex`) that feeds every results-derived number in the manuscript from the JSON outputs above, so tables and prose cannot drift from the result files. |
 | `selection_stats.py` | Corrected resampled t-tests per subject and a TOST equivalence test for selection vs no selection. |
 | `make_fig2.py` | Draws Figure 2 (simulation). |
+| `make_fig3.py` | Draws Figure 3 (where whole-brain selection puts its voxels: selection-frequency maps, share inside VT, decoding with VT removed). |
+| `make_fig4.py` | Draws the closed-form prediction of the selection bias against simulation, from the output of `selection_bias_theory.py`. |
 | `make_figures.py` | Draws Figure 1 (per-subject accuracy, our pipeline without vs. with active-voxel selection, with the permutation null) from the same JSON files. |
 
 ## Methodology notes

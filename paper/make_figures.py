@@ -8,7 +8,7 @@ Usage: python make_figures.py --haxby-final haxby_vt_final_results.json \
 Writes fig1_accuracy.pdf (vector) and fig1_accuracy.png next to this script.
 
 Palette: the validated default categorical palette (slot 1 blue, slot 2 orange) from the dataviz
-reference instance; neutral gray for the null distribution; text in ink colours, never series colours.
+reference instance; neutral gray for the null distribution; text in ink colors, never series colors.
 """
 import argparse
 import json
@@ -21,6 +21,7 @@ import numpy as np
 
 BLUE, ORANGE = "#2a78d6", "#eb6834"          # categorical slots 1 and 2 (light mode, validated)
 NULL_GRAY = "#9a9891"
+CONTEXT_GRAY = "#6f6d67"                     # de-emphasis gray for the historical reference series
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e4df"
 SURFACE = "#ffffff"
 
@@ -49,6 +50,7 @@ def main():
     ap.add_argument("--haxby-final", required=True)
     ap.add_argument("--starplus", required=True)
     ap.add_argument("--starplus-perm", required=True)
+    ap.add_argument("--starplus-ablation", help="starplus_ablation_results.json; adds the no-selection arm to panel B")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig1_accuracy"))
     a = ap.parse_args()
 
@@ -87,7 +89,7 @@ def main():
     axA.set_ylim(0, 1.0)
     axA.set_ylabel("accuracy (nested leave-one-run-out)")
     axA.set_title("A  Haxby, 8-way object category", loc="left", fontsize=9, fontweight="bold")
-    axA.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=3, frameon=False, fontsize=6.8,
+    axA.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=2, frameon=False, fontsize=6.8,
                handletextpad=0.4, columnspacing=1.2)
 
     # ---------------------------------------------------------------- B: StarPlus
@@ -99,18 +101,25 @@ def main():
     null_m = [float(np.mean(spp[s]["null_means"])) for s in sp_subs]
     null_max = [float(np.max(spp[s]["null_means"])) for s in sp_subs]
 
+    abl = json.load(open(a.starplus_ablation))["subjects"] if a.starplus_ablation else None
+
     style(axB)
     axB.axhline(0.5, color=INK2, linewidth=0.8, linestyle=(0, (3, 3)), zorder=2)
     axB.text(xs[-1] + 0.45, 0.5, "chance", color=INK2, fontsize=7, va="center", ha="left",
              bbox=dict(facecolor=SURFACE, edgecolor="none", pad=1.0))
     axB.vlines(xs, null_m, null_max, color=NULL_GRAY, linewidth=1.2, zorder=3)
     axB.scatter(xs, null_m, s=18, color=NULL_GRAY, zorder=4)
-    xr = axB.scatter(xs - 0.13, [roi[s] for s in sp_subs], s=42, color=BLUE, edgecolor=SURFACE, linewidth=1.2,
-                     zorder=4, label="active-ROI, raw windows")
-    xo = dot_series(axB, xs, ours_m, ours_sd, ORANGE, "beta-series + active-voxel (ours)", +0.13)
+    # historical reference method as de-emphasised context (gray squares)
+    axB.scatter(xs - 0.2, [roi[s] for s in sp_subs], s=34, marker="s", color=CONTEXT_GRAY,
+                edgecolor=SURFACE, linewidth=1.0, zorder=4, label="active-ROI, raw windows")
+    if abl:
+        nos_m = [abl[s]["no_selection"]["mean"] for s in sp_subs]
+        nos_sd = [abl[s]["no_selection"]["sd"] for s in sp_subs]
+        dot_series(axB, xs, nos_m, nos_sd, BLUE, "ours, beta-series, no selection", 0.0)
+    xo = dot_series(axB, xs, ours_m, ours_sd, ORANGE, "ours, beta-series + active-voxel selection", +0.2)
     axB.set_xticks(xs)
-    axB.set_xticklabels(sp_subs)
-    axB.set_xlim(0.4, 3.9)
+    axB.set_xticklabels(sp_subs, fontsize=7)
+    axB.set_xlim(0.35, 3.95)
     axB.set_ylim(0, 1.05)
     axB.set_ylabel("accuracy (nested 10-fold, trial-grouped)")
     axB.set_title("B  StarPlus, picture vs sentence", loc="left", fontsize=9, fontweight="bold")
